@@ -7,7 +7,6 @@
     <style>
         body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 80%; max-width: 400px; }
-        /* 埋め込みチャットの横幅を広げる設定 */
         gen-search-widget {
             --df-messenger-font-family: sans-serif;
             width: 100%;
@@ -20,7 +19,7 @@
 <div class="container" id="welcome-box">
     <h2>PDF AIアシスタントAA</h2>
     <p>下のボタンを押すとAIチャットが開きます</p>
-    <button id="searchWidgetTrigger" class="btn" style="padding: 15px 30px; background-color: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">
+    <button id="searchWidgetTrigger" style="padding: 15px 30px; background-color: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">
         AIチャットを起動する
     </button>
 </div>
@@ -29,8 +28,9 @@
   configId="641e8208-ac63-4d51-a816-f864dfd00f27"
   triggerId="searchWidgetTrigger"
   max-results="1"
-  enable-source-grounding="true">
-</gen-search-widget>
+  enable-source-grounding="true"
+  search-engine-id="test-pdf-chat-app" 
+  auth-type="public"> </gen-search-widget>
 
 <script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
 
