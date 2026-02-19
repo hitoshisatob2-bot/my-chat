@@ -12,7 +12,7 @@
 <body>
 
 <div class="container">
-    <h2>kubota WSM aiエージェント.c</h2>
+    <h2>kubota WSM aiエージェント.d</h2>
     <p>下のボタンを押すとAIチャットが開きます</p>
     <button id="searchWidgetTrigger" style="padding: 15px 30px; background-color: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">
         AIチャットを起動する
@@ -24,7 +24,10 @@
   triggerId="searchWidgetTrigger"
   max-results="1"
   enable-source-grounding="true"
-  enable-voice-search="true"> </gen-search-widget>
+  enable-voice-search="true"
+  language-code="ja-JP"
+  speechenable="true"> 
+</gen-search-widget>
 
 <script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
 
