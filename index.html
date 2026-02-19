@@ -65,21 +65,30 @@
             const transcript = event.results[0][0].transcript;
             statusText.innerText = "「" + transcript + "」で検索を開始します...";
             
-            // 🎙️ ここが肝：Googleのウィジェットを開き、入力窓を探す
+            // チャットを起動
             document.getElementById('searchWidgetTrigger').click();
 
+            // ★ここを修正：待ち時間を2000（2秒）に増やして、確実に入力窓を捕まえる
             setTimeout(() => {
-                const searchInput = document.querySelector('input[type="search"]');
+                // ウィジェット内の検索窓（複数の候補を探すように強化）
+                const searchInput = document.querySelector('input[type="search"]') || 
+                                    document.querySelector('.gen-search-widget__input') ||
+                                    document.getElementById('search-widget-input');
+                                    
                 if (searchInput) {
                     searchInput.value = transcript;
-                    // 入力イベントを発生させてGoogle側に認識させる
+                    // 入力確定をGoogleに通知
                     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    // Enterキーをシミュレート
-                    const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
-                    searchInput.dispatchEvent(enterEvent);
+                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    
+                    // Enterキーを強くシミュレート
+                    const enterOptions = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
+                    searchInput.dispatchEvent(new KeyboardEvent('keydown', enterOptions));
+                    searchInput.dispatchEvent(new KeyboardEvent('keypress', enterOptions));
+                    searchInput.dispatchEvent(new KeyboardEvent('keyup', enterOptions));
                 }
                 voiceBtn.classList.remove('recording');
-            }, 1000); // ウィジェットが開くのを待つため少し遅延させる
+            }, 2000); // 2秒待機
         };
 
         recognition.onerror = () => {
