@@ -5,31 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>kubota WSM aiエージェント</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 80%; max-width: 400px; }
+        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 450px; }
+        h2 { color: #333; margin-bottom: 20px; }
+        .mic-section { margin: 30px 0; }
+        #voice-btn {
+            background: #4285f4; color: white; border: none; border-radius: 50%; width: 80px; height: 80px; 
+            font-size: 35px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(66,133,244,0.4);
+        }
+        #voice-btn.recording { background: #ea4335; transform: scale(1.1); box-shadow: 0 0 20px rgba(234,67,53,0.6); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        #status { margin-top: 15px; font-weight: bold; color: #666; min-height: 1.2em; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>kubota WSM aiエージェント</h2>
-    <p>下のボタンを押すとAIチャットが開きます</p>
-    <button id="searchWidgetTrigger" style="padding: 15px 30px; background-color: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">
-        AIチャットを起動する
-    </button>
+    <h2>kubota WSM AIエージェント</h2>
+    <p>ボタンを押して「マイク」に向かって<br>質問を喋ってください</p>
+
+    <div class="mic-section">
+        <button id="voice-btn">🎙️</button>
+        <p id="status">ボタンをタップして開始</p>
+    </div>
+
+    <p style="font-size: 12px; color: #999;">例：「ボンネットの開け方を教えて」</p>
 </div>
 
-<gen-search-widget
-  configId="641e8208-ac63-4d51-a816-f864dfd00f27"
-  triggerId="searchWidgetTrigger"
-  max-results="1"
-  enable-source-grounding="true"
-  enable-voice-search="true"
-  language-code="ja-JP"
-  speechenable="true"> 
-</gen-search-widget>
+<script>
+    const voiceBtn = document.getElementById('voice-btn');
+    const statusText = document.getElementById('status');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-<script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
+    if (!SpeechRecognition) {
+        statusText.innerText = "お使いのブラウザは音声認識に未対応です";
+        voiceBtn.style.background = "#ccc";
+    } else {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+
+        voiceBtn.onclick = () => {
+            try {
+                recognition.start();
+            } catch (e) {
+                // すでに動作中の場合は無視
+            }
+        };
+
+        recognition.onstart = () => {
+            voiceBtn.classList.add('recording');
+            statusText.innerText = "聞き取り中...";
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            statusText.innerText = "「" + transcript + "」を検索中...";
+            
+            // 🚀 【大逆転の仕掛け】
+            // Googleウィジェットの検索URLを直接組み立てて、回答画面へジャンプさせます
+            // configIdはあなたの環境に合わせています
+            const configId = "641e8208-ac63-4d51-a816-f864dfd00f27";
+            const searchUrl = `https://cloud.google.com/ai/gen-app-builder/client?hl=ja&configId=${configId}&q=${encodeURIComponent(transcript)}`;
+            
+            setTimeout(() => {
+                window.location.href = searchUrl;
+            }, 800);
+        };
+
+        recognition.onerror = () => {
+            voiceBtn.classList.remove('recording');
+            statusText.innerText = "うまく聞き取れませんでした";
+        };
+
+        recognition.onend = () => {
+            voiceBtn.classList.remove('recording');
+        };
+    }
+</script>
 
 </body>
 </html>
