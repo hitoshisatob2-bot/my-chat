@@ -53,61 +53,55 @@
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
-
         micBtn.onclick = () => recognition.start();
         recognition.onstart = () => { micBtn.classList.add('recording'); statusMsg.innerText = "聞き取り中..."; };
         recognition.onend = () => { micBtn.classList.remove('recording'); };
-        
         recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            inputField.value = text;
+            inputField.value = event.results[0][0].transcript;
             statusMsg.innerText = "認識しました。「AIに質問する」を押してください。";
         };
     }
 
-    // 🚀 ここを大幅に強化しました！
     sendBtn.onclick = () => {
         const query = inputField.value;
         if (!query) return;
 
-        statusMsg.innerText = "AIを呼び出しています...";
-
-        // 1. Googleウィジェットを起動（隠しボタンをクリック）
+        // 1. Googleウィジェットを起動
         document.getElementById('hiddenTrigger').click();
+        statusMsg.innerText = "回答を準備中...";
 
-        // 2. ウィジェット内の本物の入力窓を探して、徹底的に同期させる
-        let attempts = 0;
-        const forceInput = setInterval(() => {
-            attempts++;
+        // 2. 窓が見つかるまで、しつこく探し続けて文字を叩き込む
+        let count = 0;
+        const syncInterval = setInterval(() => {
+            count++;
             const widget = document.querySelector('gen-search-widget');
-            const realInput = widget?.shadowRoot?.querySelector('input[type="search"]');
+            // Shadow DOMの奥深くにある入力窓を特定する最強のパス
+            const realInput = widget?.shadowRoot?.querySelector('input[type="search"]') || 
+                                widget?.shadowRoot?.querySelector('.Ds9S6c') || 
+                                widget?.shadowRoot?.querySelector('input');
 
             if (realInput) {
-                clearInterval(forceInput);
+                clearInterval(syncInterval);
                 
-                // 文字をセット
+                // 文字を入力して「人間が打った」と認識させる
+                realInput.focus();
                 realInput.value = query;
-                
-                // 「人間が入力した」という信号を全部送る
                 realInput.dispatchEvent(new Event('input', { bubbles: true }));
-                realInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-                // Enterキーの連打（複数の方法で実行を試みる）
+                
+                // Enterキーを3つの方法で連続実行
                 const enterData = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
                 realInput.dispatchEvent(new KeyboardEvent('keydown', enterData));
                 
-                // スマホ用に少し遅らせてから再度Enter
-                setTimeout(() => {
-                    realInput.dispatchEvent(new KeyboardEvent('keyup', enterData));
-                    statusMsg.innerText = "送信完了！回答をお待ちください。";
-                }, 100);
+                // 実行ボタンを直接クリックしにいく（念押し）
+                const searchBtn = widget?.shadowRoot?.querySelector('button[aria-label="検索"]') || 
+                                  widget?.shadowRoot?.querySelector('.VfPpkd-Bz112c-LgbsSe');
+                if (searchBtn) searchBtn.click();
+                
+                statusMsg.innerText = "送信しました！";
             }
 
-            if (attempts > 40) { // 4秒待ってもダメな場合
-                clearInterval(forceInput);
-                statusMsg.innerText = "通信が混み合っています。もう一度ボタンを押してください。";
-            }
-        }, 100); 
+            if (count > 50) clearInterval(syncInterval); // 5秒探してダメなら中止
+        }, 100);
     };
 </script>
 
