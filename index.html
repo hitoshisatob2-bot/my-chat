@@ -50,7 +50,6 @@
     const statusMsg = document.getElementById('status-msg');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    // 1. 音声認識の設定
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
@@ -61,29 +60,54 @@
         
         recognition.onresult = (event) => {
             const text = event.results[0][0].transcript;
-            inputField.value = text; // 自作の窓に確実に文字を入れる
-            statusMsg.innerText = "認識しました。質問ボタンを押してください。";
+            inputField.value = text;
+            statusMsg.innerText = "認識しました。「AIに質問する」を押してください。";
         };
     }
 
-    // 2. 質問実行ボタンが押された時の動き
+    // 🚀 ここを大幅に強化しました！
     sendBtn.onclick = () => {
         const query = inputField.value;
         if (!query) return;
 
-        // 隠れているGoogleウィジェットを起動
+        statusMsg.innerText = "AIを呼び出しています...";
+
+        // 1. Googleウィジェットを起動（隠しボタンをクリック）
         document.getElementById('hiddenTrigger').click();
 
-        // ウィジェットの入力窓を探して文字をコピー（ここは1秒待てば確実に動きます）
-        setTimeout(() => {
+        // 2. ウィジェット内の本物の入力窓を探して、徹底的に同期させる
+        let attempts = 0;
+        const forceInput = setInterval(() => {
+            attempts++;
             const widget = document.querySelector('gen-search-widget');
             const realInput = widget?.shadowRoot?.querySelector('input[type="search"]');
+
             if (realInput) {
+                clearInterval(forceInput);
+                
+                // 文字をセット
                 realInput.value = query;
+                
+                // 「人間が入力した」という信号を全部送る
                 realInput.dispatchEvent(new Event('input', { bubbles: true }));
-                realInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                realInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+                // Enterキーの連打（複数の方法で実行を試みる）
+                const enterData = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
+                realInput.dispatchEvent(new KeyboardEvent('keydown', enterData));
+                
+                // スマホ用に少し遅らせてから再度Enter
+                setTimeout(() => {
+                    realInput.dispatchEvent(new KeyboardEvent('keyup', enterData));
+                    statusMsg.innerText = "送信完了！回答をお待ちください。";
+                }, 100);
             }
-        }, 1000);
+
+            if (attempts > 40) { // 4秒待ってもダメな場合
+                clearInterval(forceInput);
+                statusMsg.innerText = "通信が混み合っています。もう一度ボタンを押してください。";
+            }
+        }, 100); 
     };
 </script>
 
