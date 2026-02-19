@@ -7,11 +7,12 @@
     <style>
         body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 80%; max-width: 400px; }
-        gen-search-widget {
-            --df-messenger-font-family: sans-serif;
-            width: 100%;
-            max-width: 1000px;
+        /* 独自マイクボタンのスタイル */
+        #voice-btn {
+            background: #4285f4; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; 
+            font-size: 24px; cursor: pointer; margin-top: 20px; transition: 0.3s;
         }
+        #voice-btn.recording { background: #ea4335; transform: scale(1.2); }
     </style>
 </head>
 <body>
@@ -22,21 +23,63 @@
     <button id="searchWidgetTrigger" style="padding: 15px 30px; background-color: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">
         AIチャットを起動する
     </button>
+    <br>
+    <button id="voice-btn" title="音声で入力">🎙️</button>
+    <p id="status" style="font-size: 12px; color: #666; margin-top: 10px;">マイクを押して喋ってください</p>
 </div>
-
-<script 
-  src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"
-  async>
-</script>
 
 <gen-search-widget
   configId="641e8208-ac63-4d51-a816-f864dfd00f27"
   triggerId="searchWidgetTrigger"
   max-results="1"
   enable-source-grounding="true"
-  auth-type="public"
-  enable-voice-search="true"
-  language-code="ja"> </gen-search-widget>
+  auth-type="public">
+</gen-search-widget>
+
+<script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
+
+<script>
+    // ブラウザの音声認識機能（Web Speech API）を呼び出す設定
+    const voiceBtn = document.getElementById('voice-btn');
+    const statusText = document.getElementById('status');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        statusText.innerText = "お使いのブラウザは音声入力に対応していません";
+        voiceBtn.style.display = "none";
+    } else {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+
+        voiceBtn.onclick = () => {
+            recognition.start();
+            voiceBtn.classList.add('recording');
+            statusText.innerText = "聞き取り中...";
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            voiceBtn.classList.remove('recording');
+            statusText.innerText = "「" + transcript + "」で検索中...";
+            
+            // 🎙️ 聞き取った言葉をGoogleの検索窓に無理やり流し込んで実行する
+            const searchInput = document.querySelector('input[type="search"]') || document.getElementById('search-widget-input');
+            if (searchInput) {
+                searchInput.value = transcript;
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('keydown', { key: 'Enter', bubbles: true }));
+            }
+            
+            // チャットを自動起動
+            document.getElementById('searchWidgetTrigger').click();
+        };
+
+        recognition.onerror = () => {
+            voiceBtn.classList.remove('recording');
+            statusText.innerText = "エラーが発生しました。もう一度試してください";
+        };
+    }
+</script>
 
 </body>
 </html>
