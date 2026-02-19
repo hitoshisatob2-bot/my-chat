@@ -5,94 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>kubota WSM aiエージェント</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
-        .container { text-align: center; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 90%; max-width: 500px; }
-        /* 検索窓のデザイン */
-        .search-box { display: flex; align-items: center; background: #fff; border: 1px solid #dfe1e5; border-radius: 24px; padding: 5px 15px; margin: 20px 0; }
-        .search-box input { flex: 1; border: none; outline: none; padding: 10px; font-size: 16px; }
-        .mic-btn { background: none; border: none; cursor: pointer; font-size: 20px; padding: 5px; }
-        .mic-btn.recording { color: red; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        #send-btn { background: #4285f4; color: white; border: none; border-radius: 20px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 80%; max-width: 400px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>kubota WSM aiエージェント.b</h2>
-    <p>音声またはテキストで質問してください</p>
-
-    <div class="search-box">
-        <input type="text" id="custom-search-input" placeholder="質問を入力、またはマイクをタップ">
-        <button id="custom-mic-btn" class="mic-btn">🎙️</button>
-    </div>
-    <button id="send-btn">AIに質問する</button>
-    <p id="status-msg" style="font-size: 12px; color: #666;"></p>
+    <h2>kubota WSM aiエージェント.c</h2>
+    <p>下のボタンを押すとAIチャットが開きます</p>
+    <button id="searchWidgetTrigger" style="padding: 15px 30px; background-color: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">
+        AIチャットを起動する
+    </button>
 </div>
 
-<div style="display:none;">
-    <button id="hiddenTrigger">隠しボタン</button>
-</div>
 <gen-search-widget
   configId="641e8208-ac63-4d51-a816-f864dfd00f27"
-  triggerId="hiddenTrigger"
+  triggerId="searchWidgetTrigger"
   max-results="1"
   enable-source-grounding="true"
-  auth-type="public">
-</gen-search-widget>
+  enable-voice-search="true"> </gen-search-widget>
 
 <script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
-
-<script>
-    const inputField = document.getElementById('custom-search-input');
-    const micBtn = document.getElementById('custom-mic-btn');
-    const sendBtn = document.getElementById('send-btn');
-    const statusMsg = document.getElementById('status-msg');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ja-JP';
-
-        micBtn.onclick = () => recognition.start();
-        recognition.onstart = () => { micBtn.classList.add('recording'); statusMsg.innerText = "聞き取り中..."; };
-        recognition.onend = () => { micBtn.classList.remove('recording'); };
-        
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            inputField.value = text;
-            statusMsg.innerText = "認識しました。「AIに質問する」を押してください。";
-        };
-    }
-
-    // 🚀 ここが「裏道」を使った新しい仕組みです
-    sendBtn.onclick = () => {
-        const query = inputField.value;
-        if (!query) return;
-
-        statusMsg.innerText = "AIを起動しています...";
-
-        // 検索ワードをURL形式に変換して、ページをリロードせずに検索を実行させる
-        const searchUrl = window.location.origin + window.location.pathname + "?q=" + encodeURIComponent(query);
-        
-        // ウィジェットがURLの引数（?q=...）を読み取って自動検索するように仕向けます
-        window.history.replaceState(null, null, searchUrl);
-        
-        // 本物のウィジェットボタンをクリック
-        document.getElementById('hiddenTrigger').click();
-        
-        // 念のため、これまで試した「直接入力」も補助的に実行
-        setTimeout(() => {
-            const widget = document.querySelector('gen-search-widget');
-            const realInput = widget?.shadowRoot?.querySelector('input[type="search"]');
-            if (realInput) {
-                realInput.value = query;
-                realInput.dispatchEvent(new Event('input', { bubbles: true }));
-                realInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-            }
-        }, 1500);
-    };
-</script>
 
 </body>
 </html>
