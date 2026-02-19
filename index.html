@@ -5,34 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>kubota WSM aiエージェント</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 80%; max-width: 400px; }
-        #voice-btn {
-            background: #4285f4; color: white; border: none; border-radius: 50%; width: 60px; height: 60px; 
-            font-size: 28px; cursor: pointer; margin-top: 20px; transition: 0.3s;
-        }
-        #voice-btn.recording { background: #ea4335; transform: scale(1.1); box-shadow: 0 0 15px rgba(234,67,53,0.5); }
+        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
+        .container { text-align: center; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 90%; max-width: 500px; }
+        /* 検索窓のデザイン */
+        .search-box { display: flex; align-items: center; background: #fff; border: 1px solid #dfe1e5; border-radius: 24px; padding: 5px 15px; margin: 20px 0; }
+        .search-box input { flex: 1; border: none; outline: none; padding: 10px; font-size: 16px; }
+        .mic-btn { background: none; border: none; cursor: pointer; font-size: 20px; padding: 5px; }
+        .mic-btn.recording { color: red; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        #send-btn { background: #4285f4; color: white; border: none; border-radius: 20px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="container" id="welcome-box">
+<div class="container">
     <h2>kubota WSM aiエージェント</h2>
-    <p>下のボタンを押すとAIチャットが開きます</p>
-    <button id="searchWidgetTrigger" style="padding: 15px 30px; background-color: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold; cursor: pointer;">
-        AIチャットを起動する
-    </button>
-    
-    <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
-    
-    <p style="font-size: 14px; font-weight: bold; color: #333;">音声で検索する</p>
-    <button id="voice-btn">🎙️</button>
-    <p id="status" style="font-size: 12px; color: #666; margin-top: 10px;">マイクを押して喋ってください</p>
+    <p>音声またはテキストで質問してください</p>
+
+    <div class="search-box">
+        <input type="text" id="custom-search-input" placeholder="質問を入力、またはマイクをタップ">
+        <button id="custom-mic-btn" class="mic-btn">🎙️</button>
+    </div>
+    <button id="send-btn">AIに質問する</button>
+    <p id="status-msg" style="font-size: 12px; color: #666;"></p>
 </div>
 
+<div style="display:none;">
+    <button id="hiddenTrigger">隠しボタン</button>
+</div>
 <gen-search-widget
   configId="641e8208-ac63-4d51-a816-f864dfd00f27"
-  triggerId="searchWidgetTrigger"
+  triggerId="hiddenTrigger"
   max-results="1"
   enable-source-grounding="true"
   auth-type="public">
@@ -41,55 +44,47 @@
 <script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
 
 <script>
-    const voiceBtn = document.getElementById('voice-btn');
-    const statusText = document.getElementById('status');
+    const inputField = document.getElementById('custom-search-input');
+    const micBtn = document.getElementById('custom-mic-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const statusMsg = document.getElementById('status-msg');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+    // 1. 音声認識の設定
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
 
-        voiceBtn.onclick = () => recognition.start();
-
-        recognition.onstart = () => {
-            voiceBtn.classList.add('recording');
-            statusText.innerText = "聞き取り中...";
-        };
-
+        micBtn.onclick = () => recognition.start();
+        recognition.onstart = () => { micBtn.classList.add('recording'); statusMsg.innerText = "聞き取り中..."; };
+        recognition.onend = () => { micBtn.classList.remove('recording'); };
+        
         recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            statusText.innerText = "「" + transcript + "」を入力中...";
-            
-            // 1. まずウィジェットを起動
-            document.getElementById('searchWidgetTrigger').click();
-
-            // 2. ウィジェットの中身が生成されるのを待ってから「深掘り」して入力
-            let attempts = 0;
-            const injectText = setInterval(() => {
-                attempts++;
-                // ウィジェットの影に隠れた入力窓を探し出す特殊な命令
-                const widget = document.querySelector('gen-search-widget');
-                const searchInput = widget?.shadowRoot?.querySelector('input[type="search"]') || 
-                                    document.querySelector('input[type="search"]');
-
-                if (searchInput) {
-                    clearInterval(injectText);
-                    searchInput.value = transcript;
-                    // Google側に「文字が入ったぞ！」と強制通知
-                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    // 検索実行
-                    setTimeout(() => {
-                        const enter = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
-                        searchInput.dispatchEvent(new KeyboardEvent('keydown', enter));
-                    }, 100);
-                }
-
-                if (attempts > 30) clearInterval(injectText); // 3秒待ってもダメなら中止
-            }, 100); // 0.1秒ごとに検索窓が出現したかチェック
+            const text = event.results[0][0].transcript;
+            inputField.value = text; // 自作の窓に確実に文字を入れる
+            statusMsg.innerText = "認識しました。質問ボタンを押してください。";
         };
-
-        recognition.onend = () => voiceBtn.classList.remove('recording');
     }
+
+    // 2. 質問実行ボタンが押された時の動き
+    sendBtn.onclick = () => {
+        const query = inputField.value;
+        if (!query) return;
+
+        // 隠れているGoogleウィジェットを起動
+        document.getElementById('hiddenTrigger').click();
+
+        // ウィジェットの入力窓を探して文字をコピー（ここは1秒待てば確実に動きます）
+        setTimeout(() => {
+            const widget = document.querySelector('gen-search-widget');
+            const realInput = widget?.shadowRoot?.querySelector('input[type="search"]');
+            if (realInput) {
+                realInput.value = query;
+                realInput.dispatchEvent(new Event('input', { bubbles: true }));
+                realInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            }
+        }, 1000);
+    };
 </script>
 
 </body>
