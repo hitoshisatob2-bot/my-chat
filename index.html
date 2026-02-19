@@ -19,7 +19,7 @@
 <body>
 
 <div class="container">
-    <h2>kubota WSM aiエージェント.a</h2>
+    <h2>kubota WSM aiエージェント.b</h2>
     <p>音声またはテキストで質問してください</p>
 
     <div class="search-box">
@@ -53,65 +53,44 @@
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
+
         micBtn.onclick = () => recognition.start();
         recognition.onstart = () => { micBtn.classList.add('recording'); statusMsg.innerText = "聞き取り中..."; };
         recognition.onend = () => { micBtn.classList.remove('recording'); };
+        
         recognition.onresult = (event) => {
-            inputField.value = event.results[0][0].transcript;
-            statusMsg.innerText = "認識完了！「AIに質問する」を押してください。";
+            const text = event.results[0][0].transcript;
+            inputField.value = text;
+            statusMsg.innerText = "認識しました。「AIに質問する」を押してください。";
         };
     }
 
+    // 🚀 ここが「裏道」を使った新しい仕組みです
     sendBtn.onclick = () => {
         const query = inputField.value;
         if (!query) return;
 
+        statusMsg.innerText = "AIを起動しています...";
+
+        // 検索ワードをURL形式に変換して、ページをリロードせずに検索を実行させる
+        const searchUrl = window.location.origin + window.location.pathname + "?q=" + encodeURIComponent(query);
+        
+        // ウィジェットがURLの引数（?q=...）を読み取って自動検索するように仕向けます
+        window.history.replaceState(null, null, searchUrl);
+        
+        // 本物のウィジェットボタンをクリック
         document.getElementById('hiddenTrigger').click();
-        statusMsg.innerText = "同期を試行中...";
-
-        let count = 0;
-        const syncInterval = setInterval(() => {
-            count++;
+        
+        // 念のため、これまで試した「直接入力」も補助的に実行
+        setTimeout(() => {
             const widget = document.querySelector('gen-search-widget');
-            const realInput = widget?.shadowRoot?.querySelector('input[type="search"]') || 
-                                widget?.shadowRoot?.querySelector('input');
-
+            const realInput = widget?.shadowRoot?.querySelector('input[type="search"]');
             if (realInput) {
-                clearInterval(syncInterval);
-                
-                // 🚀 【特殊な合図】ブラウザの「コマンド」を使って入力させる
-                realInput.focus();
-                
-                // 手順1: 1文字ずつ流し込む（inputイベントを発生させながら）
-                let i = 0;
-                const typeChar = () => {
-                    if (i < query.length) {
-                        const char = query.charAt(i);
-                        // inputイベントを発生させる
-                        realInput.setRangeText(char, realInput.selectionStart, realInput.selectionEnd, 'end');
-                        realInput.dispatchEvent(new InputEvent('input', { data: char, inputType: 'insertText', bubbles: true }));
-                        i++;
-                        setTimeout(typeChar, 10); // 10ms間隔で高速タイピング
-                    } else {
-                        // 手順2: 完了後にEnterを連打
-                        setTimeout(() => {
-                            const enterData = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
-                            realInput.dispatchEvent(new KeyboardEvent('keydown', enterData));
-                            realInput.dispatchEvent(new KeyboardEvent('keypress', enterData));
-                            realInput.dispatchEvent(new KeyboardEvent('keyup', enterData));
-                            
-                            // 手順3: 強制的にフォームを送信する命令を出す
-                            const form = realInput.closest('form');
-                            if (form) form.dispatchEvent(new Event('submit', { bubbles: true }));
-                            
-                            statusMsg.innerText = "送信しました。";
-                        }, 100);
-                    }
-                };
-                typeChar();
+                realInput.value = query;
+                realInput.dispatchEvent(new Event('input', { bubbles: true }));
+                realInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
             }
-            if (count > 50) clearInterval(syncInterval);
-        }, 100);
+        }, 1500);
     };
 </script>
 
