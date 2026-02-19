@@ -45,16 +45,11 @@
     const statusText = document.getElementById('status');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-        statusText.innerText = "お使いのブラウザは音声入力に対応していません";
-    } else {
+    if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
-        recognition.interimResults = false;
 
-        voiceBtn.onclick = () => {
-            recognition.start();
-        };
+        voiceBtn.onclick = () => recognition.start();
 
         recognition.onstart = () => {
             voiceBtn.classList.add('recording');
@@ -63,42 +58,37 @@
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            statusText.innerText = "「" + transcript + "」で検索を開始します...";
+            statusText.innerText = "「" + transcript + "」を入力中...";
             
-            // チャットを起動
+            // 1. まずウィジェットを起動
             document.getElementById('searchWidgetTrigger').click();
 
-            // ★ここを修正：待ち時間を2000（2秒）に増やして、確実に入力窓を捕まえる
-            setTimeout(() => {
-                // ウィジェット内の検索窓（複数の候補を探すように強化）
-                const searchInput = document.querySelector('input[type="search"]') || 
-                                    document.querySelector('.gen-search-widget__input') ||
-                                    document.getElementById('search-widget-input');
-                                    
+            // 2. ウィジェットの中身が生成されるのを待ってから「深掘り」して入力
+            let attempts = 0;
+            const injectText = setInterval(() => {
+                attempts++;
+                // ウィジェットの影に隠れた入力窓を探し出す特殊な命令
+                const widget = document.querySelector('gen-search-widget');
+                const searchInput = widget?.shadowRoot?.querySelector('input[type="search"]') || 
+                                    document.querySelector('input[type="search"]');
+
                 if (searchInput) {
+                    clearInterval(injectText);
                     searchInput.value = transcript;
-                    // 入力確定をGoogleに通知
+                    // Google側に「文字が入ったぞ！」と強制通知
                     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    
-                    // Enterキーを強くシミュレート
-                    const enterOptions = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
-                    searchInput.dispatchEvent(new KeyboardEvent('keydown', enterOptions));
-                    searchInput.dispatchEvent(new KeyboardEvent('keypress', enterOptions));
-                    searchInput.dispatchEvent(new KeyboardEvent('keyup', enterOptions));
+                    // 検索実行
+                    setTimeout(() => {
+                        const enter = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true };
+                        searchInput.dispatchEvent(new KeyboardEvent('keydown', enter));
+                    }, 100);
                 }
-                voiceBtn.classList.remove('recording');
-            }, 2000); // 2秒待機
+
+                if (attempts > 30) clearInterval(injectText); // 3秒待ってもダメなら中止
+            }, 100); // 0.1秒ごとに検索窓が出現したかチェック
         };
 
-        recognition.onerror = () => {
-            voiceBtn.classList.remove('recording');
-            statusText.innerText = "エラー。もう一度マイクを押してください";
-        };
-
-        recognition.onend = () => {
-            voiceBtn.classList.remove('recording');
-        };
+        recognition.onend = () => voiceBtn.classList.remove('recording');
     }
 </script>
 
