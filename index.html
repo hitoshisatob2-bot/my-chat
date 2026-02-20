@@ -5,22 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>kubota WSM AIエージェント</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; }
-        #voice-btn { background: #4285f4; color: white; border: none; border-radius: 50%; width: 90px; height: 90px; font-size: 35px; cursor: pointer; margin: 20px 0; outline: none; }
+        body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; overflow: hidden; }
+        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; z-index: 10; transition: all 0.5s ease; }
+        #voice-btn { background: #4285f4; color: white; border: none; border-radius: 50%; width: 100px; height: 100px; font-size: 40px; cursor: pointer; margin: 20px 0; outline: none; }
         #voice-btn.recording { background: #ea4335; animation: pulse 1.2s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        #result-area { font-weight: bold; font-size: 18px; color: #333; margin: 15px 0; min-height: 1.5em; }
-        /* ウィジェット自体は見えないように隠しておきます */
-        gen-search-widget { display: none !important; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        #result-area { font-weight: bold; font-size: 18px; color: #333; min-height: 1.5em; }
+        
+        /* 🚀 AI回答画面を表示するための設定 */
+        gen-search-widget {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; z-index: 100; background: white;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2 style="font-size: 22px;">kubota WSM AI.f</h2>
-    <p style="font-size: 14px; color: #666;">🎙️を押して質問してください<br>自動でAI回答画面が開きます</p>
-    
+<div id="main-ui" class="container">
+    <h2 style="font-size: 22px;">kubota WSM AI.g</h2>
+    <p style="font-size: 14px; color: #666;">🎙️を押して質問してください<br>AIがすぐにお答えします</p>
     <button id="voice-btn">🎙️</button>
     <div id="result-area">タップして開始</div>
 </div>
@@ -38,47 +41,42 @@
     const voiceBtn = document.getElementById('voice-btn');
     const resultArea = document.getElementById('result-area');
     const widget = document.getElementById('myWidget');
+    const mainUi = document.getElementById('main-ui');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
-        recognition.continuous = false; // 👈 競合を防ぐため1回ずつ終了させる
-        recognition.interimResults = false;
 
         voiceBtn.onclick = () => {
-            try {
-                recognition.start();
-                resultArea.innerText = "聞き取り中...";
-                voiceBtn.classList.add('recording');
-            } catch (e) {
-                console.log("Recognition already started");
-            }
+            recognition.start();
+            resultArea.innerText = "聞き取り中...";
+            voiceBtn.classList.add('recording');
         };
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            resultArea.innerText = "「" + transcript + "」を検索...";
-            
-            // 🚀 【ペーストなしの自動ジャンプ】
-            // 以前エラーになった?q=を、ウィジェット専用の正しい形式で送ります
-            const configId = "641e8208-ac63-4d51-a816-f864dfd00f27";
-            const searchUrl = `https://widgets.genappbuilder.cloud.google.com/widgets/${configId}/index.html?q=${encodeURIComponent(transcript)}`;
-            
-            // 確実に認識を終わらせてからジャンプ
-            setTimeout(() => {
-                window.location.href = searchUrl;
-            }, 300);
+            resultArea.innerText = "「" + transcript + "」";
+
+            // 🚀 【全自動・ノーペーストの仕掛け】
+            // ページを移動せず、このページにあるウィジェットに直接文字を渡します
+            const searchWidget = document.querySelector('gen-search-widget');
+            if (searchWidget) {
+                // 1. ウィジェットを表示する
+                searchWidget.style.display = 'block';
+                // 2. 検索を実行する（公式の内部命令）
+                const searchInput = searchWidget.shadowRoot?.querySelector('input');
+                if (searchInput) {
+                    searchInput.value = transcript;
+                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                }
+                // 3. 万が一上記が動かない場合の予備命令
+                searchWidget.setAttribute('query', transcript);
+            }
         };
 
-        recognition.onend = () => {
-            voiceBtn.classList.remove('recording');
-        };
-
-        recognition.onerror = (event) => {
-            resultArea.innerText = "もう一度お話しください";
-            voiceBtn.classList.remove('recording');
-        };
+        recognition.onend = () => { voiceBtn.classList.remove('recording'); };
     }
 </script>
 
