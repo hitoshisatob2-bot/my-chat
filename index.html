@@ -3,61 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>kubota WSM aiエージェント</title>
+    <title>kubota WSM AIエージェント</title>
     <style>
         body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 450px; }
-        h2 { color: #333; margin-bottom: 20px; }
-        #voice-btn {
-            background: #4285f4; color: white; border: none; border-radius: 50%; width: 80px; height: 80px; 
-            font-size: 35px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(66,133,244,0.4);
-        }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 85%; max-width: 450px; }
+        #voice-btn { background: #4285f4; color: white; border: none; border-radius: 50%; width: 100px; height: 100px; font-size: 40px; cursor: pointer; margin-bottom: 20px; }
         #voice-btn.recording { background: #ea4335; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        #status { margin-top: 15px; font-weight: bold; color: #666; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        #result-area { margin-top: 20px; font-weight: bold; font-size: 18px; color: #333; min-height: 1.5em; }
+        #copy-info { color: #666; font-size: 14px; margin-top: 10px; display: none; }
+        .open-btn { display: none; margin-top: 20px; padding: 15px 30px; background: #34a853; color: white; border: none; border-radius: 30px; font-weight: bold; font-size: 16px; cursor: pointer; text-decoration: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>kubota WSM AIエージェントa</h2>
-    <p>🎙️ボタンを押して喋ってください</p>
-    <div class="mic-section">
-        <button id="voice-btn">🎙️</button>
-        <p id="status">タップして開始</p>
-    </div>
+    <h2>kubota WSM AI</h2>
+    <p>🎙️を押して質問を喋ってください</p>
+    
+    <button id="voice-btn">🎙️</button>
+    <div id="result-area"></div>
+    <div id="copy-info">↑ 文字が自動でコピーされました！</div>
+
+    <button id="searchWidgetTrigger" class="open-btn">AIチャットを開く</button>
 </div>
+
+<gen-search-widget
+  configId="641e8208-ac63-4d51-a816-f864dfd00f27"
+  triggerId="searchWidgetTrigger"
+  max-results="1"
+  enable-source-grounding="true">
+</gen-search-widget>
+
+<script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
 
 <script>
     const voiceBtn = document.getElementById('voice-btn');
-    const statusText = document.getElementById('status');
+    const resultArea = document.getElementById('result-area');
+    const copyInfo = document.getElementById('copy-info');
+    const openBtn = document.getElementById('searchWidgetTrigger');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
 
-        voiceBtn.onclick = () => { try { recognition.start(); } catch (e) {} };
-
-        recognition.onstart = () => {
-            voiceBtn.classList.add('recording');
-            statusText.innerText = "聞き取り中...";
-        };
+        voiceBtn.onclick = () => { recognition.start(); resultArea.innerText = "聞き取り中..."; };
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            statusText.innerText = "「" + transcript + "」を検索中...";
-            
-            // 🚀 【ここが重要】一般公開されているウィジェット専用のURLに修正しました
-            const configId = "641e8208-ac63-4d51-a816-f864dfd00f27";
-            const searchUrl = `https://widgets.genappbuilder.cloud.google.com/widgets/${configId}/index.html?q=${encodeURIComponent(transcript)}`;
-            
-            setTimeout(() => {
-                window.location.href = searchUrl;
-            }, 800);
+            resultArea.innerText = transcript;
+
+            // 🚀 ここが魔法：喋った文字をクリップボードに自動コピー！
+            navigator.clipboard.writeText(transcript).then(() => {
+                copyInfo.style.display = 'block';
+                openBtn.style.display = 'inline-block';
+            });
         };
 
         recognition.onend = () => { voiceBtn.classList.remove('recording'); };
+        recognition.onstart = () => { voiceBtn.classList.add('recording'); };
     }
 </script>
 
