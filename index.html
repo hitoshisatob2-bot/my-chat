@@ -3,72 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>kubota WSM AIエージェント</title>
+    <title>kubota WSM AI</title>
     <style>
         body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; }
-        #voice-btn { background: #4285f4; color: white; border: none; border-radius: 50%; width: 90px; height: 90px; font-size: 35px; cursor: pointer; margin: 20px 0; outline: none; }
-        #voice-btn.recording { background: #ea4335; animation: pulse 1.2s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        #result-area { font-weight: bold; font-size: 18px; color: #333; margin: 15px 0; min-height: 1.5em; }
-        /* 💡 ウィジェットは背後で待機させます */
-        gen-search-widget { display: none; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; }
+        /* 🚀 巨大なボタンを一つだけ配置 */
+        .main-btn { 
+            background: #4285f4; color: white; border: none; border-radius: 50px; 
+            padding: 20px 40px; font-size: 20px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(66,133,244,0.4); transition: transform 0.2s;
+        }
+        .main-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="font-size: 20px;">kubota WSM AI.h</h2>
-    <p style="font-size: 14px; color: #666;">🎙️を押して質問してください<br>自動でAIがお答えします</p>
+    <h2 style="margin-bottom: 30px;">kubota WSM AI.I</h2>
+    <p style="color: #666; margin-bottom: 30px;">下のボタンを押して<br><b>マイクのアイコン</b>をタップしてください</p>
     
-    <button id="voice-btn">🎙️</button>
-    <div id="result-area">タップして開始</div>
+    <button id="start-btn" class="main-btn">AIチャットを開始</button>
 </div>
 
 <gen-search-widget
-  id="myWidget"
   configId="641e8208-ac63-4d51-a816-f864dfd00f27"
+  triggerId="start-btn"
   max-results="1"
-  enable-source-grounding="true">
+  enable-source-grounding="true"
+  enable-voice-search="true">
 </gen-search-widget>
 
 <script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
-
-<script>
-    const voiceBtn = document.getElementById('voice-btn');
-    const resultArea = document.getElementById('result-area');
-    const widget = document.getElementById('myWidget');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ja-JP';
-
-        voiceBtn.onclick = () => {
-            recognition.start();
-            resultArea.innerText = "聞き取り中...";
-            voiceBtn.classList.add('recording');
-        };
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            resultArea.innerText = "「" + transcript + "」";
-
-            // 🚀 【全自動の核心】
-            // Google公式が用意している「query」という属性に文字を入れます。
-            // これだけで、ペーストなしで検索がスタートします！
-            if (widget) {
-                widget.setAttribute('query', transcript);
-                // ウィジェットを画面に呼び出します
-                setTimeout(() => {
-                    widget.open(); 
-                }, 300);
-            }
-        };
-
-        recognition.onend = () => { voiceBtn.classList.remove('recording'); };
-    }
-</script>
 
 </body>
 </html>
