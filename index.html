@@ -7,63 +7,57 @@
     <style>
         body { font-family: sans-serif; margin: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
         .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; }
-        #voice-btn { background: #4285f4; color: white; border: none; border-radius: 50%; width: 80px; height: 80px; font-size: 35px; cursor: pointer; margin: 20px 0; outline: none; }
-        #voice-btn.recording { background: #ea4335; animation: pulse 1.5s infinite; }
+        #voice-btn { background: #4285f4; color: white; border: none; border-radius: 50%; width: 100px; height: 100px; font-size: 40px; cursor: pointer; margin: 20px 0; outline: none; }
+        #voice-btn.recording { background: #ea4335; animation: pulse 1.2s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        #result-area { font-weight: bold; font-size: 18px; color: #333; margin: 15px 0; min-height: 1.5em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        
-        /* 🚀 緑のボタンを「Google公式の起動スイッチ」として設定 */
-        #searchWidgetTrigger { 
-            display: inline-block; padding: 15px 30px; background: #34a853; color: white; border: none; 
-            border-radius: 30px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px;
-            box-shadow: 0 4px 10px rgba(52,168,83,0.3); text-decoration: none;
-        }
+        #result-area { font-weight: bold; font-size: 20px; color: #333; margin: 20px 0; min-height: 1.5em; }
+        .loader { display: none; margin: 10px auto; border: 4px solid #f3f3f3; border-top: 4px solid #34a853; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="font-size: 20px;">kubota WSM AI.c</h2>
-    <p style="font-size: 14px; color: #666;">① 🎙️を押して喋る<br>② 下のボタンを押して、窓に<b>貼る</b></p>
+    <h2 style="font-size: 22px;">kubota WSM AI.d</h2>
+    <p style="font-size: 14px; color: #666;">🎙️を押して質問してください<br>自動でAIが回答します</p>
     
     <button id="voice-btn">🎙️</button>
     <div id="result-area"></div>
-
-    <button id="searchWidgetTrigger">AIチャットを起動</button>
+    <div id="loader" class="loader"></div>
 </div>
-
-<gen-search-widget
-  configId="641e8208-ac63-4d51-a816-f864dfd00f27"
-  triggerId="searchWidgetTrigger"
-  max-results="1"
-  enable-source-grounding="true">
-</gen-search-widget>
-
-<script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
 
 <script>
     const voiceBtn = document.getElementById('voice-btn');
     const resultArea = document.getElementById('result-area');
+    const loader = document.getElementById('loader');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
 
-        voiceBtn.onclick = () => { recognition.start(); resultArea.innerText = "聞き取り中..."; };
+        voiceBtn.onclick = () => { recognition.start(); resultArea.innerText = "どうぞ、お話しください"; };
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            resultArea.innerText = transcript;
+            resultArea.innerText = "「" + transcript + "」";
+            loader.style.display = "block";
             
-            // 🚀 文字をクリップボードに保存
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(transcript);
-            }
+            // 🚀 【全自動の仕掛け】
+            // ウィジェットを介さず、Googleの検索エンジンを直接キックします
+            const configId = "641e8208-ac63-4d51-a816-f864dfd00f27";
+            const targetUrl = `https://widgets.genappbuilder.cloud.google.com/widgets/${configId}/index.html?q=${encodeURIComponent(transcript)}`;
+            
+            // 0.5秒後に自動でジャンプ（ペースト不要！）
+            setTimeout(() => {
+                window.location.href = targetUrl;
+            }, 500);
         };
 
         recognition.onstart = () => { voiceBtn.classList.add('recording'); };
         recognition.onend = () => { voiceBtn.classList.remove('recording'); };
+    } else {
+        resultArea.innerText = "お使いのブラウザは音声認識に対応していません";
     }
 </script>
 
