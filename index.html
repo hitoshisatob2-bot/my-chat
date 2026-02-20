@@ -21,15 +21,15 @@
 <body>
 
 <div class="container">
-    <h2>kubota WSM AIエージェント.e</h2>
-    <p>ボタンを押して「マイク」に向かって<br>質問を喋ってください</p>
+    <h2>kubota WSM AIエージェント</h2>
+    <p>ボタンを押して喋ってください<br>AIが音声で回答画面へ案内します</p>
 
     <div class="mic-section">
         <button id="voice-btn">🎙️</button>
-        <p id="status">ボタンをタップして開始</p>
+        <p id="status">タップして質問する</p>
     </div>
 
-    <p style="font-size: 12px; color: #999;">例：「ボンネットの開け方を教えて」</p>
+    <p style="font-size: 12px; color: #999;">「ボンネットの開け方は？」など</p>
 </div>
 
 <script>
@@ -37,20 +37,11 @@
     const statusText = document.getElementById('status');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-        statusText.innerText = "お使いのブラウザは音声認識に未対応です";
-        voiceBtn.style.background = "#ccc";
-    } else {
+    if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'ja-JP';
 
-        voiceBtn.onclick = () => {
-            try {
-                recognition.start();
-            } catch (e) {
-                // すでに動作中の場合は無視
-            }
-        };
+        voiceBtn.onclick = () => { try { recognition.start(); } catch (e) {} };
 
         recognition.onstart = () => {
             voiceBtn.classList.add('recording');
@@ -59,27 +50,20 @@
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            statusText.innerText = "「" + transcript + "」を検索中...";
+            statusText.innerText = "「" + transcript + "」を解析中...";
             
-            // 🚀 【大逆転の仕掛け】
-            // Googleウィジェットの検索URLを直接組み立てて、回答画面へジャンプさせます
-            // configIdはあなたの環境に合わせています
-            const configId = "641e8208-ac63-4d51-a816-f864dfd00f27";
-            const searchUrl = `https://cloud.google.com/ai/gen-app-builder/client?hl=ja&configId=${configId}&q=${encodeURIComponent(transcript)}`;
+            // 🚀 ここを修正：プログラム部品ではなく、プレビュー用の回答ページへ飛ばします
+            // あなたのプロジェクト専用のURLを組み立てました
+            const engineId = "test-pdf-chat-app_1771315398667";
+            const projectNum = "project-c482c56a-16d2-4b8c-b89";
+            const searchUrl = `https://console.cloud.google.com/gen-app-builder/locations/global/engines/${engineId}/preview?project=${projectNum}&q=${encodeURIComponent(transcript)}`;
             
             setTimeout(() => {
                 window.location.href = searchUrl;
             }, 800);
         };
 
-        recognition.onerror = () => {
-            voiceBtn.classList.remove('recording');
-            statusText.innerText = "うまく聞き取れませんでした";
-        };
-
-        recognition.onend = () => {
-            voiceBtn.classList.remove('recording');
-        };
+        recognition.onend = () => { voiceBtn.classList.remove('recording'); };
     }
 </script>
 
