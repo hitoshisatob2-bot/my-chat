@@ -40,15 +40,7 @@
       max-width: 320px;
     }
     .main-btn:active { transform: scale(0.95); }
- 
-    /* 🎤 音声送信ボタン（方式A） */
-    .voice-btn {
-      background: #34a853;
-      box-shadow: 0 5px 15px rgba(52,168,83,0.35);
-      margin-top: 14px;
-    }
-    .voice-btn:active { transform: scale(0.95); }
- 
+
     .note {
       color: #666;
       margin-bottom: 22px;
@@ -63,28 +55,22 @@
   </style>
 </head>
 <body>
- 
+
   <div class="container">
     <h2 style="margin-bottom: 18px;">kubota WSM AI.o</h2>
- 
+
     <p class="note">
-      下のボタンを押して開始します。<br>
-      <b>音声で送る場合は「音声で質問して送信」</b> を押してください。
+      下のボタンを押して開始します。
     </p>
- 
-    <!-- 既存：ウィジェットを開くボタン -->
+
     <button id="start-btn" class="main-btn">AIチャットを開始</button>
- 
-    <!-- 方式A：ページ側で音声→テキスト→送信まで -->
-    <button id="voice-send-btn" class="main-btn voice-btn">音声で質問して送信</button>
- 
+
     <div class="small">
-      ※ 音声入力はブラウザ依存です。<br>
-      入力欄へ自動送信できない場合は、テキストをコピーして案内します。
+      ※ チャット内で音声検索を利用する場合は、<br>
+      表示されるマイクアイコンをタップしてください。
     </div>
   </div>
- 
-  <!-- Vertex AI Search Widget -->
+
   <gen-search-widget
     configId="641e8208-ac63-4d51-a816-f864dfd00f27"
     triggerId="start-btn"
@@ -92,173 +78,8 @@
     enable-source-grounding="true"
     enable-voice-search="true">
   </gen-search-widget>
- 
+
   <script src="https://cloud.google.com/ai/gen-app-builder/client?hl=ja"></script>
- 
-<script>
-(() => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
- 
-  const startBtn = document.getElementById('start-btn');
-  const voiceBtn = document.getElementById('voice-send-btn');
- 
-  // 画面上に見えている要素だけ
-  const visible = (el) => el && el.getClientRects && el.getClientRects().length > 0;
- 
-  // フレームワーク系が value 変更を拾うように “ネイティブ setter” で入れる
-  function setNativeValue(el, value) {
-    const proto = Object.getPrototypeOf(el);
-    const desc = Object.getOwnPropertyDescriptor(proto, 'value');
-    if (desc && desc.set) desc.set.call(el, value);
-    else el.value = value;
-  }
- 
-  // ウィジェットの「入力欄っぽいもの」を拾う
-  function findBestInput() {
-    const candidates = Array.from(document.querySelectorAll('input, textarea'))
-      .filter(visible)
-      .filter(el => (el.type || '').toLowerCase() !== 'hidden');
- 
-    const scored = candidates.map(el => {
-      const ph = (el.placeholder || '').toLowerCase();
-      const al = (el.getAttribute('aria-label') || '').toLowerCase();
-      const role = (el.getAttribute('role') || '').toLowerCase();
-      const score =
-        (ph.includes('search') || ph.includes('検索') ? 3 : 0) +
-        (al.includes('search') || al.includes('検索') ? 3 : 0) +
-        (role.includes('search') ? 1 : 0);
-      return { el, score };
-    }).sort((a,b) => b.score - a.score);
- 
-    // それっぽいのが無い場合は “最も画面中央に近い入力” を返す
-    if (!scored.length || scored[0].score === 0) {
-      const cx = window.innerWidth / 2;
-      const cy = window.innerHeight / 2;
-      const byCenter = candidates.map(el => {
-        const r = el.getBoundingClientRect();
-        const dx = (r.left + r.width/2) - cx;
-        const dy = (r.top + r.height/2) - cy;
-        return { el, d: Math.hypot(dx, dy) };
-      }).sort((a,b)=>a.d-b.d);
-      return byCenter[0]?.el || null;
-    }
-    return scored[0].el;
-  }
- 
-  // 「送信/検索」ボタンっぽいものを探してクリック
-  function clickSendButton() {
-    const buttons = Array.from(document.querySelectorAll('button, [role="button"]'))
-      .filter(visible);
- 
-    const hit = buttons.find(b => {
-      const t = (b.textContent || '').trim();
-      const al = (b.getAttribute('aria-label') || '').trim();
-      const title = (b.getAttribute('title') || '').trim();
-      const s = (t + ' ' + al + ' ' + title).toLowerCase();
-      return (
-        s.includes('search') ||
-        s.includes('検索') ||
-        s.includes('送信') ||
-        s.includes('send') ||
-        s.includes('submit')
-      );
-    });
- 
-    if (hit) {
-      hit.click();
-      console.log('[voice-send] clicked send/search button:', hit);
-      return true;
-    }
-    return false;
-  }
- 
-  function pressEnter(el) {
-    el.dispatchEvent(new KeyboardEvent('keydown', { key:'Enter', code:'Enter', bubbles:true }));
-    el.dispatchEvent(new KeyboardEvent('keypress', { key:'Enter', code:'Enter', bubbles:true }));
-    el.dispatchEvent(new KeyboardEvent('keyup', { key:'Enter', code:'Enter', bubbles:true }));
-  }
- 
-  async function copyToClipboard(text) {
-    try { await navigator.clipboard.writeText(text); return true; }
-    catch(e){ return false; }
-  }
- 
-  // オーバーレイ生成を待ちながら「入力→送信」を複数回試す
-  async function injectAndSubmit(text) {
-    // 最大 25 回リトライ（約2.5秒想定）
-    for (let i=0; i<25; i++) {
-      const input = findBestInput();
-      if (input) {
-        console.log('[voice-send] found input:', input);
- 
-        input.focus();
-        setNativeValue(input, text);
- 
-        // 入力イベントを丁寧に
-        input.dispatchEvent(new Event('input', { bubbles:true }));
-        input.dispatchEvent(new Event('change', { bubbles:true }));
- 
-        // 1) Enter
-        pressEnter(input);
- 
-        // 2) 送信ボタンもクリック
-        const clicked = clickSendButton();
- 
-        // Network が走る場合、ここで成功することが多い
-        // 連打を避けるため、ボタンをクリックできたら一旦抜ける
-        if (clicked) return true;
- 
-        // Enter だけで走る実装もあるので、ここで少し待って終了
-        await new Promise(r => setTimeout(r, 150));
-        return true;
-      }
- 
-      // input がまだいない：少し待つ
-      await new Promise(r => setTimeout(r, 100));
-    }
- 
-    // どうしても掴めない場合はフォールバック
-    const copied = await copyToClipboard(text);
-    alert(
-      (copied ? '音声テキストをコピーしました。' : '音声テキストを取得しました。') +
-      '\nウィジェットの入力欄に貼り付けて送信してください：\n\n' + text
-    );
-    return false;
-  }
- 
-  voiceBtn.addEventListener('click', async () => {
-    if (!SpeechRecognition) {
-      alert('このブラウザは音声入力（Web Speech API）に未対応です。Chrome / Edge をお試しください。');
-      return;
-    }
- 
-    // 先にウィジェットを開く（入力欄が生成されるのを待つ）
-    startBtn?.click();
- 
-    const rec = new SpeechRecognition();
-    rec.lang = 'ja-JP';
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
- 
-    rec.onresult = async (e) => {
-      const text = e.results[0][0].transcript;
-      console.log('[voice-send] transcript:', text);
- 
-      // 送信処理
-      await injectAndSubmit(text);
-    };
- 
-    rec.onerror = (e) => {
-      console.log('[voice-send] speech error:', e);
-      alert('音声入力でエラーが発生しました: ' + (e.error || 'unknown'));
-    };
- 
-    rec.start();
-  });
-})();
-</script>
- 
- 
+
 </body>
 </html>
- 
